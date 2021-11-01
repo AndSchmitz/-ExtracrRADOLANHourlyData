@@ -8,7 +8,7 @@ This script extracts [DWD RADOLAN hourly precipitation amounts](https://www.dwd.
  - Make sure all other .R files are stored in a subfolder "HelpingFunctions" of the working directory.
  - Install all libraries listed in the beginning of "ExtractRADOLANHourlyData.R".
  - Adjust the variable "WorkDir" in the beginning of "ExtractRADOLANHourlyData.R" to match the working directory.
- - Run the script.
+ - Run the script. Output is incrementally written to a file in WorkDir/Output.
  - Adjust the "TargetLocationsAndTimeSpans.csv" to your needs.
 
 ## Validation
