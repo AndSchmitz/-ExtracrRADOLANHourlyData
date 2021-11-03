@@ -12,6 +12,14 @@ GetRADOLANData <- function(
   
   #Check input TargetLocationsDates-----
   
+  #_Check for required columns-----
+  ColsRequired <- c("LocationLabel","LonEPSG4326","LatEPSG4326","DateStart","DateEnd")
+  ColsAvailable <- colnames(TargetLocationsAndTimeSpans)
+  MissCols <- ColsRequired[!(ColsRequired %in% ColsAvailable)]
+  if ( length(MissCols) > 0 ) {
+    stop(paste("Error in input CSV: The following columns are missing:",paste(MissCols, collapse = ",")))
+  }
+  
   #_Check for missing values-----
   #Drop lines completely NA
   TargetLocationsAndTimeSpans[TargetLocationsAndTimeSpans == ""] <- NA
@@ -35,7 +43,7 @@ GetRADOLANData <- function(
     }
   }
   
-  #_Check input for valid date format------
+  #_Check input CSV dates------
   #Determine TargetFormat and convert DateStart and DateEnd to date format
   DateFormat1 <- "%Y-%m-%d"
   DateFormat2 <- "%d.%m.%Y"
@@ -60,11 +68,29 @@ GetRADOLANData <- function(
       DateStart = as.Date(DateStart, format = TargetFormat),
       DateEnd = as.Date(DateEnd, format = TargetFormat)
     )
+  #Check that DateEnd > DateStart
+  if ( any(TargetLocationsAndTimeSpans$DateEnd < TargetLocationsAndTimeSpans$DateStart) ) {
+    stop("In some rows in input CSV DateEnd is before DateStart. ")
+  }
   
+  #_Check coords------
+  #It is not checked whether the coords are inside the RADOLAN domain
+  if ( !all(is.numeric(TargetLocationsAndTimeSpans$LatEPSG4326)) ) {
+    stop("Not all values in input CSV column LatEPSG4326 are numeric.")
+  }
+  if ( !all(is.numeric(TargetLocationsAndTimeSpans$LonEPSG4326)) ) {
+    stop("Not all values in input CSV column LonEPSG4326 are numeric.")
+  }
+  if ( max(abs(TargetLocationsAndTimeSpans$LatEPSG4326)) > 180 ) {
+    stop("Some values in input CSV column LatEPSG4326 are below -180 or above 180 degree.")
+  }
+  if ( max(abs(TargetLocationsAndTimeSpans$LonEPSG4326)) > 180 ) {
+    stop("Some values in input CSV column LonEPSG4326 are below -180 or above 180 degree.")
+  }
   
   #Expand input table to hourly level-----
   #Expand input table to one row per LocationLabel x Date
-  TargetLocationsDatesAndHours <- list()
+  TargetLocationsAndDates <- list()
   for ( iRow in 1:nrow(TargetLocationsAndTimeSpans) ) {
     CurrentInputRowData <- data.frame(
       LocationLabel = TargetLocationsAndTimeSpans$LocationLabel[iRow],
@@ -72,29 +98,25 @@ GetRADOLANData <- function(
       LonEPSG4326 = TargetLocationsAndTimeSpans$LonEPSG4326[iRow],
       Date = seq(TargetLocationsAndTimeSpans$DateStart[iRow], TargetLocationsAndTimeSpans$DateEnd[iRow], by = 1)
     )
-    TargetLocationsDatesAndHours[[iRow]] <- CurrentInputRowData
+    TargetLocationsAndDates[[iRow]] <- CurrentInputRowData
   }
-  TargetLocationsDatesAndHours <- do.call(rbind.data.frame, TargetLocationsDatesAndHours)
-  #Expand input table to one row per LocationLabel x Date x Hour
-  TargetLocationsDatesAndHours <- TargetLocationsDatesAndHours[rep(x = 1:nrow(TargetLocationsDatesAndHours), each = 24),]
-  TargetLocationsDatesAndHours$Hour <- rep(0:23)
-  
+  TargetLocationsAndDates <- do.call(rbind.data.frame, TargetLocationsAndDates)
   
   #Get download URLs for each row-----
   print("Getting download URLs for required time spans...")
-  UniqueDatesAndHours <- TargetLocationsDatesAndHours %>%
-    dplyr::select(Date, Hour) %>%
+  UniqueDates <- TargetLocationsAndDates %>%
+    dplyr::select(Date) %>%
     distinct()
   DownloadURLs <- GetDownloadURLs(
-    DatesAndHours = UniqueDatesAndHours
+    DatesToDownload = UniqueDates
   )
-  TargetLocationsDatesAndHours <- TargetLocationsDatesAndHours %>%
+  TargetLocationsAndDates <- TargetLocationsAndDates %>%
     merge(
       y = DownloadURLs,
       all.x = T
     )
-  if ( any(is.na(TargetLocationsDatesAndHours$DownloadURL))  ) {
-    DatesMiss <- unique(TargetLocationsDatesAndHours$Date[is.na(TargetLocationsDatesAndHours$DownloadURL)])
+  if ( any(is.na(TargetLocationsAndDates$DownloadURL))  ) {
+    DatesMiss <- unique(TargetLocationsAndDates$Date[is.na(TargetLocationsAndDates$DownloadURL)])
     print(DatesMiss)
     stop("Could not find a download URL for the dates listed above.")
   }
@@ -103,7 +125,7 @@ GetRADOLANData <- function(
   #Loop over download files-----
   RADOLAN_Files_Dir <- file.path(OutDir,"RADOLAN_Files")
   dir.create(RADOLAN_Files_Dir, showWarnings = F)
-  UniqueDownloadURLs <- unique(TargetLocationsDatesAndHours$DownloadURL)
+  UniqueDownloadURLs <- unique(TargetLocationsAndDates$DownloadURL)
   UniqueDownloadURLs <- UniqueDownloadURLs[!is.na(UniqueDownloadURLs)]
   #Loop through files and download file one by one
   for ( i in 1:length(UniqueDownloadURLs) ) {
@@ -189,8 +211,7 @@ GetRADOLANData <- function(
       CurrentHour = as.numeric(substr(x = DigitsOnly, start = 10, stop = 11))
       CurrentDate = as.Date(x = paste0(CurrentYear,"-",CurrentMonth,"-",CurrentDay))
       idx_TargetLocations <- which(
-        (TargetLocationsDatesAndHours$Date == CurrentDate) &
-        (TargetLocationsDatesAndHours$Hour == CurrentHour)
+        (TargetLocationsAndDates$Date == CurrentDate)
       )
       if ( length(idx_TargetLocations) == 0 ) {
         #If file comes from monthly archive but desired time span starts later
@@ -201,14 +222,15 @@ GetRADOLANData <- function(
       
       #__Read data-----
       #Read current hourly file
-      CurrentOutput <- TargetLocationsDatesAndHours[idx_TargetLocations,]
+      CurrentOutput <- TargetLocationsAndDates[idx_TargetLocations,]
       CurrentOutput$PrecipRADOLAN_mm <- ExtractDataFromFile(
         Coordinates = CurrentOutput[,c("LonEPSG4326","LatEPSG4326")],
         FilePath = CurrentFile
       )
       CurrentOutput <- CurrentOutput %>%
         mutate(
-          PrecipRADOLAN_mm = round(PrecipRADOLAN_mm,PrecipPrecision)
+          PrecipRADOLAN_mm = round(PrecipRADOLAN_mm,PrecipPrecision),
+          Hour = CurrentHour
         ) %>%
         dplyr::select(LocationLabel, Date, Hour, PrecipRADOLAN_mm)
       if ( any(is.na(CurrentOutput)) ) {

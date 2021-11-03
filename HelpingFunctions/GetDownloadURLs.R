@@ -1,12 +1,12 @@
 GetDownloadURLs <- function(
-  DatesAndHours
+  DatesToDownload
 ) {
   
   #RADOLAN ASCII raster data is provided by DWD in different formats:
   # - folder "recent" contains one archive with 24 hourly files
   # - folder "historical" contains one folder per year with subfolders for each month
   #https://opendata.dwd.de/climate_environment/CDC/grids_germany/hourly/radolan/
-  #For each hour in input "DatesAndHours", this script tries to find a matching
+  #For each hour in input "DatesToDownload", this script tries to find a matching
   #file in "recent" folder. If it fails, it tries to find a matching file in
   #"historical" folder. If this also fails, DownloadURL is returned as NA for
   #that input row.
@@ -154,7 +154,7 @@ GetDownloadURLs <- function(
   
   
   #Match URLs with dates------
-  DownloadURLs <- DatesAndHours %>%
+  DownloadURLs <- DatesToDownload %>%
     mutate(
       Year = as.numeric(format(
         x = Date,
@@ -191,7 +191,7 @@ GetDownloadURLs <- function(
         !is.na(DownloadURLHistorical) ~ DownloadURLHistorical
       )
     ) %>%
-    dplyr::select(Date, Hour, DownloadURL)
+    dplyr::select(Date, DownloadURL)
 
   return(DownloadURLs)
 }
