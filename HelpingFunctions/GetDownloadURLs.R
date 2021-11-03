@@ -146,8 +146,8 @@ GetDownloadURLs <- function(
         string = FileURL,
         pattern = "[:digit:]{6}"
       ),
-      Year = substr(x = DigitsOnly, start = 1, stop = 4),
-      Month = substr(x = DigitsOnly, start = 5, stop = 6),
+      Year = as.numeric(substr(x = DigitsOnly, start = 1, stop = 4)),
+      Month = as.numeric(substr(x = DigitsOnly, start = 5, stop = 6)),
       DownloadURLHistorical = paste0(HistoricalURL,"/",Year,"/",FileURL)
     ) %>%
     dplyr::select(-FileURL, -DigitsOnly)
