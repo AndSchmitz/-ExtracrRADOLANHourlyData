@@ -7,6 +7,7 @@ options(
 )
 
 library(raster) #for handling RADOLAN raster files
+library(rgdal) #for projections
 library(httr) #for extracting download URLs from DWD CDC websites
 library(tidyverse) #for data handling
 
