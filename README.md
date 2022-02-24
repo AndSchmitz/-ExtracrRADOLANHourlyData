@@ -1,5 +1,5 @@
 # ExtractRADOLANHourlyData
-This script extracts [DWD RADOLAN hourly precipitation amounts](https://www.dwd.de/DE/leistungen/radolan/radolan_info/home_freie_radolan_kartendaten.html) at point locations. 
+This script extracts [DWD RADOLAN hourly precipitation amounts](https://www.dwd.de/DE/leistungen/radolan/radolan_info/home_freie_radolan_kartendaten.html) at point locations. It uses the [2017.002 reproc data](http://dx.doi.org/10.5676/DWD/RADKLIM_RW_V2017.002) when available for the dates of interest, or else checks the [recent](https://opendata.dwd.de/climate_environment/CDC/grids_germany/hourly/radolan/recent/asc/) folder for data.
 
 ## How to use
  - Download all files from this repository (e.g. via Code -> Download ZIP above).
