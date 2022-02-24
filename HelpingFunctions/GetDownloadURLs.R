@@ -85,7 +85,17 @@ GetDownloadURLs <- function(
       ))
     ) %>%
     dplyr::select(-BaseFileName, -DateString)
-  
+  #FIXME? 2022-02-24
+  #Folder "recent" also contains some single files from previous years (2007
+  #2016,..). Why? These files are also available in the "reproc" folder, i.e.
+  #these dates are covered twice.
+  #Workaround: Keep only current year and past year in "RecentURLs"
+  ValidRecentYears <- as.numeric(format(Sys.Date(),"%Y"))
+  ValidRecentYears <- (ValidRecentYears-1):ValidRecentYears
+  RecentURLs <- RecentURLs %>%
+    filter(
+      Year %in% ValidRecentYears
+    )
   
   #List all files in "reproc" folder-----
   
@@ -188,12 +198,9 @@ GetDownloadURLs <- function(
       DownloadURL = case_when(
         !is.na(DownloadURLRecent) & is.na(DownloadURLReproc) ~ DownloadURLRecent,
         is.na(DownloadURLRecent) & !is.na(DownloadURLReproc) ~ DownloadURLReproc,
-        #FIXME? 2022-02-24
-        #Folder "recent" also contains some single files from previous years (2007
-        #2016,..). Why? These files are also available in the "reproc" folder, i.e.
-        #these dates are covered twice.
-        #Workaround: Prefer "reproc" over "recent"
-        !is.na(DownloadURLRecent) & !is.na(DownloadURLReproc) ~ DownloadURLReproc,
+        #Default to recent: 2022-02-24: file "2021-01-01" if with only 5 hours
+        #in "reproc" but with 24 hours (complete) in recent.
+        !is.na(DownloadURLRecent) & !is.na(DownloadURLReproc) ~ DownloadURLRecent,
         T ~ NA_character_
       )
     ) %>%
